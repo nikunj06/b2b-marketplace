@@ -1,0 +1,173 @@
+{
+  "info": { "name": "B2B Marketplace API Tests", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "item": [
+    {
+      "name": "1. Register Manufacturer",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Manufacturer\",\n  \"email\": \"test.mfr@company.com\",\n  \"password\": \"password123\",\n  \"role\": \"manufacturer\",\n  \"company_name\": \"Test Corp Pvt Ltd\",\n  \"gst_number\": \"GST27TESTM1234A1Z9\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Register Retailer",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Retailer\",\n  \"email\": \"test.ret@shop.com\",\n  \"password\": \"password123\",\n  \"role\": \"retailer\",\n  \"business_name\": \"Test Retail Shop\",\n  \"gst_number\": \"GST07TESTR9012C3Z8\"\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Login as Admin",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@b2b.com\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Login as Manufacturer",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ravi@texcorp.com\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Login as Retailer",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ankit@ankitmart.com\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "6. Add Product (Manufacturer Token Required)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/products/add",
+        "header": [
+          { "key": "Content-Type",  "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer <MANUFACTURER_TOKEN>" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_name\": \"Denim Fabric\",\n  \"category\": \"Textiles\",\n  \"description\": \"Heavy denim, blue shade\",\n  \"minimum_order_quantity\": 50,\n  \"stock_quantity\": 300,\n  \"wholesale_price\": 120.00\n}"
+        }
+      }
+    },
+    {
+      "name": "7. Get All Products (Retailer Token Required)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/products/all",
+        "header": [{ "key": "Authorization", "value": "Bearer <RETAILER_TOKEN>" }]
+      }
+    },
+    {
+      "name": "8. Get Manufacturer's Products",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/products/manufacturer/1",
+        "header": [{ "key": "Authorization", "value": "Bearer <MANUFACTURER_TOKEN>" }]
+      }
+    },
+    {
+      "name": "9. Place Order (Retailer Token Required)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/orders/place",
+        "header": [
+          { "key": "Content-Type",  "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer <RETAILER_TOKEN>" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"manufacturer_id\": 1,\n  \"product_id\": 1,\n  \"quantity\": 100\n}"
+        }
+      }
+    },
+    {
+      "name": "10. Get Retailer Orders",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/orders/retailer/1",
+        "header": [{ "key": "Authorization", "value": "Bearer <RETAILER_TOKEN>" }]
+      }
+    },
+    {
+      "name": "11. Update Order Status (Manufacturer Token)",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:3000/api/orders/status",
+        "header": [
+          { "key": "Content-Type",  "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer <MANUFACTURER_TOKEN>" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": 3,\n  \"status\": \"approved\"\n}"
+        }
+      }
+    },
+    {
+      "name": "12. Admin - Get All Users",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/admin/users",
+        "header": [{ "key": "Authorization", "value": "Bearer <ADMIN_TOKEN>" }]
+      }
+    },
+    {
+      "name": "13. Admin - Get All Orders",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/admin/orders",
+        "header": [{ "key": "Authorization", "value": "Bearer <ADMIN_TOKEN>" }]
+      }
+    },
+    {
+      "name": "14. Admin - Get Inventory",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/admin/inventory",
+        "header": [{ "key": "Authorization", "value": "Bearer <ADMIN_TOKEN>" }]
+      }
+    },
+    {
+      "name": "15. Test Trigger - Negative Stock (Should FAIL)",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:3000/api/products/inventory/update",
+        "header": [
+          { "key": "Content-Type",  "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer <MANUFACTURER_TOKEN>" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 1,\n  \"stock_quantity\": -10,\n  \"wholesale_price\": 85.00\n}"
+        }
+      }
+    }
+  ]
+}

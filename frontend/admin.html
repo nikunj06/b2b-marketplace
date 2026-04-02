@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — B2B Market</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary:#1a56db; --primary-dark:#1341a8; --accent:#f59e0b; --sidebar:#0f2057; }
+        body { font-family:'Inter',sans-serif; background:#f3f6fc; }
+        .navbar { background:var(--sidebar)!important; }
+        .navbar-brand { font-family:'Sora',sans-serif; font-weight:700; color:#fff!important; font-size:1.2rem; }
+        .navbar-brand span { color:var(--accent); }
+        .stat-card { border:none; border-radius:14px; box-shadow:0 2px 14px rgba(0,0,0,.07); color:#fff; }
+        .stat-card .label { font-size:.78rem; opacity:.85; text-transform:uppercase; letter-spacing:.5px; }
+        .stat-card .value { font-size:2rem; font-family:'Sora',sans-serif; font-weight:700; }
+        .bg-blue   { background:linear-gradient(135deg,#1a56db,#2563eb); }
+        .bg-green  { background:linear-gradient(135deg,#059669,#10b981); }
+        .bg-orange { background:linear-gradient(135deg,#d97706,#f59e0b); }
+        .bg-purple { background:linear-gradient(135deg,#7c3aed,#8b5cf6); }
+        .section-card { border:none; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); }
+        .section-card .card-header { background:#fff; border-bottom:1px solid #e5e7eb; border-radius:12px 12px 0 0!important; font-weight:600; }
+        .table th { font-size:.78rem; text-transform:uppercase; letter-spacing:.5px; color:#6b7280; background:#f9fafb; }
+        .table td { font-size:.875rem; vertical-align:middle; }
+        .badge-pending  { background:#fef3c7; color:#92400e; }
+        .badge-approved { background:#d1fae5; color:#065f46; }
+        .badge-rejected { background:#fee2e2; color:#991b1b; }
+        .badge-completed{ background:#dbeafe; color:#1e40af; }
+        .status-badge { padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+        .role-badge-manufacturer { background:#ede9fe; color:#5b21b6; padding:2px 8px; border-radius:20px; font-size:.75rem; font-weight:600; }
+        .role-badge-retailer { background:#fce7f3; color:#9d174d; padding:2px 8px; border-radius:20px; font-size:.75rem; font-weight:600; }
+        .role-badge-admin { background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:20px; font-size:.75rem; font-weight:600; }
+        .low-stock { color:#dc2626; font-weight:600; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">B2B<span>Market</span> <span class="text-white-50" style="font-size:.75rem;font-family:Inter;">Admin</span></span>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+            <span class="text-white-50 small" id="welcomeMsg"></span>
+            <button class="btn btn-sm btn-outline-light" onclick="logout()">Logout</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid px-4 py-4">
+
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4" id="statsRow">
+        <div class="col-md-3"><div class="stat-card bg-blue card p-3"><div class="label">Total Users</div><div class="value" id="statUsers">—</div></div></div>
+        <div class="col-md-3"><div class="stat-card bg-green card p-3"><div class="label">Total Orders</div><div class="value" id="statOrders">—</div></div></div>
+        <div class="col-md-3"><div class="stat-card bg-orange card p-3"><div class="label">Products Listed</div><div class="value" id="statProducts">—</div></div></div>
+        <div class="col-md-3"><div class="stat-card bg-purple card p-3"><div class="label">Revenue (₹)</div><div class="value" id="statRevenue">—</div></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-2">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabUsers">Users</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabOrders">All Orders</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabInventory">Inventory</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- Users Tab -->
+        <div class="tab-pane fade show active" id="tabUsers">
+            <div class="section-card card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <span>Registered Users</span>
+                    <button class="btn btn-sm btn-primary" onclick="loadUsers()">↻ Refresh</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Business</th><th>GST</th><th>Joined</th></tr>
+                            </thead>
+                            <tbody id="usersBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="tab-pane fade" id="tabOrders">
+            <div class="section-card card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <span>All Orders</span>
+                    <button class="btn btn-sm btn-primary" onclick="loadOrders()">↻ Refresh</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr><th>Order ID</th><th>Date</th><th>Retailer</th><th>Manufacturer</th><th>Items</th><th>Total Value (₹)</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="ordersBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div class="tab-pane fade" id="tabInventory">
+            <div class="section-card card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <span>Inventory Overview <span class="text-muted small fw-normal">(sorted by low stock first)</span></span>
+                    <button class="btn btn-sm btn-primary" onclick="loadInventory()">↻ Refresh</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr><th>Product</th><th>Category</th><th>Manufacturer</th><th>Min. Order Qty</th><th>Stock</th><th>Price (₹)</th></tr>
+                            </thead>
+                            <tbody id="inventoryBody">
+                                <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    const token = localStorage.getItem('token');
+
+    if (!token || !user || user.role !== 'admin') window.location.href = 'login.html';
+    document.getElementById('welcomeMsg').textContent = `Welcome, ${user.name}`;
+
+    function authHeaders() { return { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` }; }
+    function statusBadge(s) {
+        const map = { pending:'badge-pending', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed' };
+        return `<span class="status-badge ${map[s]||''}">${s}</span>`;
+    }
+    function roleBadge(r) { return `<span class="role-badge-${r}">${r}</span>`; }
+
+    async function loadStats() {
+        try {
+            const r = await fetch('/api/admin/stats', { headers: authHeaders() });
+            const d = await r.json();
+            if (d.success) {
+                document.getElementById('statUsers').textContent    = d.stats.total_users;
+                document.getElementById('statOrders').textContent   = d.stats.total_orders;
+                document.getElementById('statProducts').textContent = d.stats.total_products;
+                document.getElementById('statRevenue').textContent  = '₹' + parseFloat(d.stats.total_revenue).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+            }
+        } catch(e) { console.error('Stats error', e); }
+    }
+
+    async function loadUsers() {
+        const tb = document.getElementById('usersBody');
+        tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>';
+        try {
+            const r = await fetch('/api/admin/users', { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.success || !d.users.length) {
+                tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No users found.</td></tr>';
+                return;
+            }
+            tb.innerHTML = d.users.map(u => `
+                <tr>
+                    <td>${u.user_id}</td>
+                    <td>${u.name}</td>
+                    <td>${u.email}</td>
+                    <td>${roleBadge(u.role)}</td>
+                    <td>${u.business}</td>
+                    <td><code>${u.gst}</code></td>
+                    <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tb.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error loading users.</td></tr>';
+        }
+    }
+
+    async function loadOrders() {
+        const tb = document.getElementById('ordersBody');
+        tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>';
+        try {
+            const r = await fetch('/api/admin/orders', { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.success || !d.orders.length) {
+                tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No orders found.</td></tr>';
+                return;
+            }
+            tb.innerHTML = d.orders.map(o => `
+                <tr>
+                    <td>#${o.order_id}</td>
+                    <td>${new Date(o.order_date).toLocaleDateString()}</td>
+                    <td>${o.retailer}</td>
+                    <td>${o.manufacturer}</td>
+                    <td>${o.item_count}</td>
+                    <td>₹${parseFloat(o.total_value).toFixed(2)}</td>
+                    <td>${statusBadge(o.order_status)}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tb.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error loading orders.</td></tr>';
+        }
+    }
+
+    async function loadInventory() {
+        const tb = document.getElementById('inventoryBody');
+        tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>';
+        try {
+            const r = await fetch('/api/admin/inventory', { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.success || !d.inventory.length) {
+                tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No inventory data.</td></tr>';
+                return;
+            }
+            tb.innerHTML = d.inventory.map(i => `
+                <tr>
+                    <td>${i.product_name}</td>
+                    <td><span class="badge bg-secondary">${i.category}</span></td>
+                    <td>${i.manufacturer}</td>
+                    <td>${i.minimum_order_quantity}</td>
+                    <td class="${i.stock_quantity < 50 ? 'low-stock' : ''}">${i.stock_quantity} ${i.stock_quantity < 50 ? '⚠️' : ''}</td>
+                    <td>₹${parseFloat(i.wholesale_price).toFixed(2)}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tb.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-4">Error loading inventory.</td></tr>';
+        }
+    }
+
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', e => {
+            const href = e.target.getAttribute('href');
+            if (href === '#tabOrders')    loadOrders();
+            if (href === '#tabInventory') loadInventory();
+        });
+    });
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+    }
+
+    loadStats();
+    loadUsers();
+</script>
+</body>
+</html>

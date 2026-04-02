@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retailer Dashboard — B2B Market</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary:#1a56db; --primary-dark:#1341a8; --accent:#f59e0b; --sidebar:#0f2057; }
+        body { font-family:'Inter',sans-serif; background:#f3f6fc; }
+        .navbar { background:var(--sidebar)!important; }
+        .navbar-brand { font-family:'Sora',sans-serif; font-weight:700; color:#fff!important; font-size:1.2rem; }
+        .navbar-brand span { color:var(--accent); }
+        .section-card { border:none; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.07); }
+        .section-card .card-header { background:#fff; border-bottom:1px solid #e5e7eb; border-radius:12px 12px 0 0!important; font-weight:600; }
+        .table th { font-size:.8rem; text-transform:uppercase; letter-spacing:.5px; color:#6b7280; background:#f9fafb; }
+        .table td { font-size:.875rem; vertical-align:middle; }
+        .badge-pending  { background:#fef3c7; color:#92400e; }
+        .badge-approved { background:#d1fae5; color:#065f46; }
+        .badge-rejected { background:#fee2e2; color:#991b1b; }
+        .badge-completed{ background:#dbeafe; color:#1e40af; }
+        .status-badge { padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+        .form-control,.form-select { border-radius:8px; border:1.5px solid #d1d5db; font-size:.875rem; }
+        .form-control:focus,.form-select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
+        .btn-primary { background:var(--primary); border:none; border-radius:8px; font-weight:600; }
+        .btn-primary:hover { background:var(--primary-dark); }
+        .product-card { border:1.5px solid #e5e7eb; border-radius:12px; padding:1rem; background:#fff; transition:box-shadow .2s; }
+        .product-card:hover { box-shadow:0 4px 20px rgba(26,86,219,.12); border-color:var(--primary); }
+        .search-bar input { border-radius:8px; border:1.5px solid #d1d5db; }
+        #orderAlert { display:none; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">B2B<span>Market</span></span>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+            <span class="text-white-50 small" id="welcomeMsg"></span>
+            <button class="btn btn-sm btn-outline-light" onclick="logout()">Logout</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid px-4 py-4">
+
+    <ul class="nav nav-tabs mb-2" id="mainTabs">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabBrowse">Browse Products</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabMyOrders">My Orders</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- ===== TAB: Browse Products ===== -->
+        <div class="tab-pane fade show active" id="tabBrowse">
+            <div class="row mb-3 search-bar">
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search products..." oninput="filterProducts()">
+                </div>
+                <div class="col-md-3">
+                    <select id="categoryFilter" class="form-select" onchange="filterProducts()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3" id="productsGrid">
+                <div class="col-12 text-center text-muted py-5">Loading products...</div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: My Orders ===== -->
+        <div class="tab-pane fade" id="tabMyOrders">
+            <div class="section-card card">
+                <div class="card-header d-flex justify-content-between align-items-center py-3">
+                    <span>My Order History</span>
+                    <button class="btn btn-sm btn-primary" onclick="loadMyOrders()">↻ Refresh</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr><th>Order ID</th><th>Date</th><th>Manufacturer</th><th>Product</th><th>Qty</th><th>Value (₹)</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="myOrdersBody">
+                                <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Order Modal -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:12px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Place Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="orderAlert" class="alert small py-2"></div>
+                <p class="text-muted small mb-3" id="orderProductInfo"></p>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Quantity</label>
+                    <input type="number" id="orderQty" class="form-control" min="1">
+                    <div class="form-text" id="moqHint"></div>
+                </div>
+                <div class="mb-1">
+                    <span class="small text-muted">Estimated Total: </span>
+                    <span class="fw-bold text-primary" id="estimatedTotal">₹0.00</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="submitOrder()">Place Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    const token = localStorage.getItem('token');
+
+    if (!token || !user || user.role !== 'retailer') window.location.href = 'login.html';
+    document.getElementById('welcomeMsg').textContent = `Welcome, ${user.name}`;
+
+    let allProducts = [];
+    let currentProduct = null;
+
+    function authHeaders() { return { 'Content-Type':'application/json','Authorization':`Bearer ${token}` }; }
+
+    function statusBadge(s) {
+        const map = { pending:'badge-pending', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed' };
+        return `<span class="status-badge ${map[s]||''}">${s}</span>`;
+    }
+
+    async function loadProducts() {
+        try {
+            const r = await fetch('/api/products/all', { headers: authHeaders() });
+            const d = await r.json();
+            allProducts = d.products || [];
+
+            // Populate category filter
+            const cats = [...new Set(allProducts.map(p => p.category))];
+            const sel = document.getElementById('categoryFilter');
+            cats.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                sel.appendChild(o);
+            });
+
+            renderProducts(allProducts);
+        } catch(e) {
+            document.getElementById('productsGrid').innerHTML = '<div class="col-12 text-danger text-center py-4">Error loading products.</div>';
+        }
+    }
+
+    function filterProducts() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const cat    = document.getElementById('categoryFilter').value;
+        const filtered = allProducts.filter(p =>
+            (!cat || p.category === cat) &&
+            (!search || p.product_name.toLowerCase().includes(search) || p.manufacturer.toLowerCase().includes(search))
+        );
+        renderProducts(filtered);
+    }
+
+    function renderProducts(products) {
+        const grid = document.getElementById('productsGrid');
+        if (!products.length) {
+            grid.innerHTML = '<div class="col-12 text-center text-muted py-5">No products found.</div>';
+            return;
+        }
+        grid.innerHTML = products.map(p => `
+            <div class="col-md-4 col-lg-3">
+                <div class="product-card h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-secondary small">${p.category}</span>
+                        ${p.stock_quantity < 50 ? '<span class="badge bg-danger small">Low Stock</span>' : ''}
+                    </div>
+                    <h6 class="fw-semibold mb-1">${p.product_name}</h6>
+                    <p class="text-muted small mb-2">by ${p.manufacturer}</p>
+                    <p class="small text-secondary mb-2">${p.description || 'No description.'}</p>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold text-primary">₹${parseFloat(p.wholesale_price).toFixed(2)}</span>
+                        <span class="text-muted small">Stock: ${p.stock_quantity}</span>
+                    </div>
+                    <div class="text-muted small mb-3">Min. Order: ${p.minimum_order_quantity} units</div>
+                    <button class="btn btn-primary btn-sm w-100"
+                        onclick='openOrderModal(${JSON.stringify(p)})'>
+                        Place Order
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openOrderModal(product) {
+        currentProduct = product;
+        document.getElementById('orderProductInfo').textContent =
+            `${product.product_name} — ₹${parseFloat(product.wholesale_price).toFixed(2)} per unit | Available: ${product.stock_quantity}`;
+        document.getElementById('moqHint').textContent = `Minimum order: ${product.minimum_order_quantity} units`;
+        document.getElementById('orderQty').value = product.minimum_order_quantity;
+        document.getElementById('orderQty').min   = product.minimum_order_quantity;
+        document.getElementById('estimatedTotal').textContent = `₹${(product.minimum_order_quantity * parseFloat(product.wholesale_price)).toFixed(2)}`;
+        document.getElementById('orderAlert').style.display = 'none';
+        new bootstrap.Modal(document.getElementById('orderModal')).show();
+    }
+
+    document.getElementById('orderQty').addEventListener('input', function() {
+        if (currentProduct) {
+            const total = (parseInt(this.value) || 0) * parseFloat(currentProduct.wholesale_price);
+            document.getElementById('estimatedTotal').textContent = `₹${total.toFixed(2)}`;
+        }
+    });
+
+    async function submitOrder() {
+        const qty       = parseInt(document.getElementById('orderQty').value);
+        const alertEl   = document.getElementById('orderAlert');
+        alertEl.style.display = 'none';
+
+        if (!qty || qty < currentProduct.minimum_order_quantity) {
+            alertEl.className = 'alert alert-danger small py-2';
+            alertEl.textContent = `Minimum order quantity is ${currentProduct.minimum_order_quantity}.`;
+            alertEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            const r = await fetch('/api/orders/place', {
+                method:'POST', headers: authHeaders(),
+                body: JSON.stringify({
+                    manufacturer_id: currentProduct.manufacturer_id || currentProduct.product_id,  // fallback
+                    product_id:      currentProduct.product_id,
+                    quantity:        qty
+                })
+            });
+            const d = await r.json();
+            alertEl.className = d.success ? 'alert alert-success small py-2' : 'alert alert-danger small py-2';
+            alertEl.textContent = d.message;
+            alertEl.style.display = 'block';
+            if (d.success) {
+                setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide(), 1500);
+                loadProducts();
+            }
+        } catch(e) {
+            alertEl.className = 'alert alert-danger small py-2';
+            alertEl.textContent = 'Server error.';
+            alertEl.style.display = 'block';
+        }
+    }
+
+    async function loadMyOrders() {
+        const tb = document.getElementById('myOrdersBody');
+        tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>';
+        try {
+            const r = await fetch(`/api/orders/retailer/${user.role_id}`, { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.success || !d.orders.length) {
+                tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No orders yet.</td></tr>';
+                return;
+            }
+            tb.innerHTML = d.orders.map(o => `
+                <tr>
+                    <td>#${o.order_id}</td>
+                    <td>${new Date(o.order_date).toLocaleDateString()}</td>
+                    <td>${o.manufacturer}</td>
+                    <td>${o.product_name}</td>
+                    <td>${o.quantity}</td>
+                    <td>₹${parseFloat(o.line_total).toFixed(2)}</td>
+                    <td>${statusBadge(o.order_status)}</td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tb.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error loading orders.</td></tr>';
+        }
+    }
+
+    // Fetch manufacturer_id from products API (we need it for order placement)
+    async function enrichProductsWithManufacturerId() {
+        // The getAllProducts query already returns manufacturer name; we need manufacturer_id
+        // We'll re-fetch with an updated query or use product's manufacturer info from the API
+        // The products endpoint returns all needed fields including manufacturer_id via join
+    }
+
+    // Tab switch events
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', e => {
+            if (e.target.getAttribute('href') === '#tabMyOrders') loadMyOrders();
+        });
+    });
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+    }
+
+    loadProducts();
+</script>
+</body>
+</html>

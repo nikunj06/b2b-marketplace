@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B2B Marketplace — Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #1a56db; --primary-dark: #1341a8; --accent: #f59e0b; --bg: #f0f4ff; }
+        body { background: var(--bg); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 0; }
+        .brand { font-family: 'Sora', sans-serif; font-weight: 700; color: var(--primary); }
+        .brand span { color: var(--accent); }
+        .card { border: none; border-radius: 16px; box-shadow: 0 8px 40px rgba(26,86,219,0.12); }
+        .btn-primary { background: var(--primary); border-color: var(--primary); font-weight: 600; border-radius: 8px; }
+        .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+        .form-control, .form-select { border-radius: 8px; border: 1.5px solid #d1d5db; }
+        .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+        #alertBox { display:none; }
+        #successBox { display:none; }
+        .role-fields { display: none; }
+    </style>
+</head>
+<body>
+<div class="container" style="max-width:480px;">
+    <div class="text-center mb-4">
+        <div class="brand fs-3 mb-1">B2B<span>Market</span></div>
+        <p class="text-muted small">Create your business account</p>
+    </div>
+    <div class="card p-4">
+        <h5 class="fw-bold mb-4 text-center">Register</h5>
+        <div id="alertBox"   class="alert alert-danger  small py-2"></div>
+        <div id="successBox" class="alert alert-success small py-2"></div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Full Name</label>
+            <input type="text" id="name" class="form-control" placeholder="Your full name">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Email Address</label>
+            <input type="email" id="email" class="form-control" placeholder="you@company.com">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Password</label>
+            <input type="password" id="password" class="form-control" placeholder="Min. 6 characters">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-semibold">Register As</label>
+            <select id="role" class="form-select" onchange="toggleRoleFields()">
+                <option value="">-- Select Role --</option>
+                <option value="manufacturer">Manufacturer</option>
+                <option value="retailer">Retailer</option>
+            </select>
+        </div>
+
+        <!-- Manufacturer Fields -->
+        <div id="manufacturerFields" class="role-fields">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Company Name</label>
+                <input type="text" id="company_name" class="form-control" placeholder="Your company name">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">GST Number</label>
+                <input type="text" id="mfr_gst" class="form-control" placeholder="e.g. GST27AABCT1234A1Z5">
+            </div>
+        </div>
+
+        <!-- Retailer Fields -->
+        <div id="retailerFields" class="role-fields">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Business Name</label>
+                <input type="text" id="business_name" class="form-control" placeholder="Your business name">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">GST Number</label>
+                <input type="text" id="ret_gst" class="form-control" placeholder="e.g. GST07AACCA9012C3Z7">
+            </div>
+        </div>
+
+        <button class="btn btn-primary w-100 py-2 mt-2" onclick="doRegister()">Create Account</button>
+        <hr class="my-3">
+        <p class="text-center small mb-0">
+            Already registered? <a href="login.html" class="text-primary fw-semibold">Sign in</a>
+        </p>
+    </div>
+</div>
+
+<script>
+function toggleRoleFields() {
+    const role = document.getElementById('role').value;
+    document.getElementById('manufacturerFields').style.display = role === 'manufacturer' ? 'block' : 'none';
+    document.getElementById('retailerFields').style.display     = role === 'retailer'     ? 'block' : 'none';
+}
+
+async function doRegister() {
+    const alertBox   = document.getElementById('alertBox');
+    const successBox = document.getElementById('successBox');
+    alertBox.style.display   = 'none';
+    successBox.style.display = 'none';
+
+    const name     = document.getElementById('name').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const role     = document.getElementById('role').value;
+
+    if (!name || !email || !password || !role) {
+        alertBox.textContent = 'Please fill in all required fields.';
+        alertBox.style.display = 'block';
+        return;
+    }
+
+    const body = { name, email, password, role };
+
+    if (role === 'manufacturer') {
+        body.company_name = document.getElementById('company_name').value.trim();
+        body.gst_number   = document.getElementById('mfr_gst').value.trim();
+    } else {
+        body.business_name = document.getElementById('business_name').value.trim();
+        body.gst_number    = document.getElementById('ret_gst').value.trim();
+    }
+
+    try {
+        const resp = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            successBox.textContent = 'Registration successful! Redirecting to login...';
+            successBox.style.display = 'block';
+            setTimeout(() => window.location.href = 'login.html', 1800);
+        } else {
+            alertBox.textContent = data.message;
+            alertBox.style.display = 'block';
+        }
+    } catch (err) {
+        alertBox.textContent = 'Connection error. Is the server running?';
+        alertBox.style.display = 'block';
+    }
+}
+</script>
+</body>
+</html>
