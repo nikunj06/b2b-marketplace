@@ -76,7 +76,7 @@
                         <table class="table mb-0">
                             <thead>
                                 <tr>
-                                    <th>ID</th><th>Product Name</th><th>Category</th>
+                                    <th>ID</th><th>Image</th><th>Product Name</th><th>Category</th>
                                     <th>Min. Order Qty</th><th>Stock</th><th>Wholesale Price (₹)</th>
                                 </tr>
                             </thead>
@@ -108,6 +108,10 @@
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold">Description</label>
                                 <textarea id="description" class="form-control" rows="2" placeholder="Short description"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Product Image (Optional)</label>
+                                <input type="file" id="image" class="form-control" accept="image/*">
                             </div>
                             <div class="row">
                                 <div class="col mb-3">
@@ -162,16 +166,15 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const user  = JSON.parse(localStorage.getItem('user') || 'null');
-    const token = localStorage.getItem('token');
 
-    if (!token || !user || user.role !== 'manufacturer') {
+    if (!user || user.role !== 'manufacturer') {
         window.location.href = 'login.html';
     }
 
     document.getElementById('welcomeMsg').textContent = `Welcome, ${user.name}`;
 
     function authHeaders() {
-        return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        return { 'Content-Type': 'application/json' };
     }
 
     function statusBadge(s) {
@@ -186,12 +189,13 @@
             const r = await fetch(`/api/products/manufacturer/${user.role_id}`, { headers: authHeaders() });
             const d = await r.json();
             if (!d.success || d.products.length === 0) {
-                tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No products yet. Use "Add Product" tab.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No products yet. Use "Add Product" tab.</td></tr>';
                 return;
             }
             tb.innerHTML = d.products.map(p => `
                 <tr>
                     <td>${p.product_id}</td>
+                    <td>${p.image_url ? `<img src="${p.image_url}" alt="img" class="rounded" width="40" height="40" style="object-fit:cover;">` : '<div class="bg-light rounded text-center text-muted" style="width:40px;height:40px;line-height:40px;font-size:10px;">IMG</div>'}</td>
                     <td>${p.product_name}</td>
                     <td><span class="badge bg-secondary">${p.category}</span></td>
                     <td>${p.minimum_order_quantity}</td>
@@ -200,7 +204,7 @@
                 </tr>
             `).join('');
         } catch (e) {
-            tb.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-4">Error loading products.</td></tr>';
+            tb.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error loading products.</td></tr>';
         }
     }
 
@@ -241,28 +245,39 @@
     async function addProduct() {
         const alertMsg = document.getElementById('alertMsg');
         alertMsg.style.display = 'none';
-        const body = {
-            product_name:          document.getElementById('product_name').value.trim(),
-            category:              document.getElementById('category').value.trim(),
-            description:           document.getElementById('description').value.trim(),
-            minimum_order_quantity: parseInt(document.getElementById('minimum_order_quantity').value),
-            stock_quantity:        parseInt(document.getElementById('stock_quantity').value),
-            wholesale_price:       parseFloat(document.getElementById('wholesale_price').value)
-        };
-        if (!body.product_name || !body.category || isNaN(body.minimum_order_quantity) || isNaN(body.stock_quantity) || isNaN(body.wholesale_price)) {
+        const minQty = parseInt(document.getElementById('minimum_order_quantity').value);
+        const stQty = parseInt(document.getElementById('stock_quantity').value);
+        const price = parseFloat(document.getElementById('wholesale_price').value);
+        const name = document.getElementById('product_name').value.trim();
+        const cat = document.getElementById('category').value.trim();
+
+        if (!name || !cat || isNaN(minQty) || isNaN(stQty) || isNaN(price)) {
             alertMsg.className = 'alert alert-danger small py-2';
             alertMsg.textContent = 'Please fill in all fields correctly.';
             alertMsg.style.display = 'block';
             return;
         }
+
+        const formData = new FormData();
+        formData.append('product_name', name);
+        formData.append('category', cat);
+        formData.append('description', document.getElementById('description').value.trim());
+        formData.append('minimum_order_quantity', minQty);
+        formData.append('stock_quantity', stQty);
+        formData.append('wholesale_price', price);
+        const fileInput = document.getElementById('image');
+        if (fileInput.files[0]) {
+            formData.append('image', fileInput.files[0]);
+        }
+
         try {
-            const r = await fetch('/api/products/add', { method:'POST', headers: authHeaders(), body: JSON.stringify(body) });
+            const r = await fetch('/api/products/add', { method:'POST', body: formData });
             const d = await r.json();
             alertMsg.className = d.success ? 'alert alert-success small py-2' : 'alert alert-danger small py-2';
             alertMsg.textContent = d.message;
             alertMsg.style.display = 'block';
             if (d.success) {
-                ['product_name','category','description','minimum_order_quantity','stock_quantity','wholesale_price'].forEach(id => document.getElementById(id).value = '');
+                ['product_name','category','description','minimum_order_quantity','stock_quantity','wholesale_price','image'].forEach(id => document.getElementById(id).value = '');
             }
         } catch (e) {
             alertMsg.className = 'alert alert-danger small py-2';
@@ -285,8 +300,8 @@
         }
     }
 
-    function logout() {
-        localStorage.removeItem('token');
+    async function logout() {
+        await fetch('/api/auth/logout', { method: 'POST' });
         localStorage.removeItem('user');
         window.location.href = 'login.html';
     }

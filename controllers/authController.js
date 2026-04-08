@@ -8,17 +8,8 @@ const JWT_SECRET  = process.env.JWT_SECRET  || 'b2b_secret_key_2024';
 const SALT_ROUNDS = 10;
 
 // POST /api/auth/register
-async function register(req, res) {
+async function register(req, res, next) {
     const { name, email, password, role, company_name, gst_number, business_name } = req.body;
-
-    // Basic validation
-    if (!name || !email || !password || !role) {
-        return res.status(400).json({ success: false, message: 'Name, email, password and role are required.' });
-    }
-
-    if (!['manufacturer', 'retailer'].includes(role)) {
-        return res.status(400).json({ success: false, message: 'Role must be manufacturer or retailer.' });
-    }
 
     try {
         // Check if email already exists
@@ -39,17 +30,11 @@ async function register(req, res) {
 
         // Insert into role-specific table
         if (role === 'manufacturer') {
-            if (!company_name || !gst_number) {
-                return res.status(400).json({ success: false, message: 'company_name and gst_number are required for manufacturers.' });
-            }
             await db.execute(
                 'INSERT INTO Manufacturers (user_id, company_name, gst_number) VALUES (?, ?, ?)',
                 [user_id, company_name, gst_number]
             );
         } else if (role === 'retailer') {
-            if (!business_name || !gst_number) {
-                return res.status(400).json({ success: false, message: 'business_name and gst_number are required for retailers.' });
-            }
             await db.execute(
                 'INSERT INTO Retailers (user_id, business_name, gst_number) VALUES (?, ?, ?)',
                 [user_id, business_name, gst_number]
@@ -59,18 +44,13 @@ async function register(req, res) {
         return res.status(201).json({ success: true, message: 'Registration successful.' });
 
     } catch (err) {
-        console.error('Register error:', err);
-        return res.status(500).json({ success: false, message: 'Server error during registration.' });
+        next(err);
     }
 }
 
 // POST /api/auth/login
-async function login(req, res) {
+async function login(req, res, next) {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ success: false, message: 'Email and password are required.' });
-    }
 
     try {
         const [rows] = await db.execute('SELECT * FROM Users WHERE email = ?', [email]);
@@ -102,16 +82,27 @@ async function login(req, res) {
             { expiresIn: '24h' }
         );
 
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        });
+
         return res.json({
             success: true,
-            token,
             user: { user_id: user.user_id, name: user.name, email: user.email, role: user.role, role_id: roleId }
         });
 
     } catch (err) {
-        console.error('Login error:', err);
-        return res.status(500).json({ success: false, message: 'Server error during login.' });
+        next(err);
     }
 }
 
-module.exports = { register, login };
+// POST /api/auth/logout
+function logout(req, res) {
+    res.clearCookie('token');
+    return res.json({ success: true, message: 'Logged out successfully.' });
+}
+
+module.exports = { register, login, logout };

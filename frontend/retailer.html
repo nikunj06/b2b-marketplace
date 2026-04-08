@@ -25,6 +25,8 @@
         .form-control:focus,.form-select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
         .btn-primary { background:var(--primary); border:none; border-radius:8px; font-weight:600; }
         .btn-primary:hover { background:var(--primary-dark); }
+        .btn-accent  { background:var(--accent); color:#fff; border:none; border-radius:8px; font-weight:600; }
+        .btn-accent:hover { background:#d97706; color:#fff; }
         .product-card { border:1.5px solid #e5e7eb; border-radius:12px; padding:1rem; background:#fff; transition:box-shadow .2s; }
         .product-card:hover { box-shadow:0 4px 20px rgba(26,86,219,.12); border-color:var(--primary); }
         .search-bar input { border-radius:8px; border:1.5px solid #d1d5db; }
@@ -37,6 +39,7 @@
     <div class="container-fluid px-4">
         <span class="navbar-brand">B2B<span>Market</span></span>
         <div class="d-flex align-items-center gap-3 ms-auto">
+            <button class="btn btn-sm btn-accent" onclick="openCartModal()">🛒 Cart (<span id="cartCount">0</span>)</button>
             <span class="text-white-50 small" id="welcomeMsg"></span>
             <button class="btn btn-sm btn-outline-light" onclick="logout()">Logout</button>
         </div>
@@ -94,30 +97,59 @@
     </div>
 </div>
 
-<!-- Order Modal -->
-<div class="modal fade" id="orderModal" tabindex="-1">
+<!-- Add To Cart Modal -->
+<div class="modal fade" id="addToCartModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content" style="border-radius:12px;">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Place Order</h5>
+                <h5 class="modal-title fw-bold">Add to Cart</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="orderAlert" class="alert small py-2"></div>
-                <p class="text-muted small mb-3" id="orderProductInfo"></p>
+                <div id="cartAlert" class="alert small py-2"></div>
+                <p class="text-muted small mb-3" id="cartProductInfo"></p>
                 <div class="mb-3">
                     <label class="form-label small fw-semibold">Quantity</label>
-                    <input type="number" id="orderQty" class="form-control" min="1">
-                    <div class="form-text" id="moqHint"></div>
+                    <input type="number" id="cartQty" class="form-control" min="1">
+                    <div class="form-text" id="cartMoqHint"></div>
                 </div>
                 <div class="mb-1">
                     <span class="small text-muted">Estimated Total: </span>
-                    <span class="fw-bold text-primary" id="estimatedTotal">₹0.00</span>
+                    <span class="fw-bold text-primary" id="cartEstimatedTotal">₹0.00</span>
                 </div>
             </div>
             <div class="modal-footer border-0">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-primary" onclick="submitOrder()">Place Order</button>
+                <button class="btn btn-primary" onclick="submitAddToCart()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius:12px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Shopping Cart</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="checkoutAlert" class="alert small py-2"></div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr><th>Product</th><th>Price</th><th>Qty</th><th>Total</th><th></th></tr>
+                        </thead>
+                        <tbody id="cartItemsBody"></tbody>
+                    </table>
+                </div>
+                <div class="text-end fw-bold text-primary fs-5 mt-3">Grand Total: ₹<span id="cartGrandTotal">0.00</span></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-outline-danger" onclick="clearCart()">Clear Cart</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-accent" onclick="confirmCheckout()">Checkout</button>
             </div>
         </div>
     </div>
@@ -126,15 +158,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const user  = JSON.parse(localStorage.getItem('user') || 'null');
-    const token = localStorage.getItem('token');
 
-    if (!token || !user || user.role !== 'retailer') window.location.href = 'login.html';
+    if (!user || user.role !== 'retailer') window.location.href = 'login.html';
     document.getElementById('welcomeMsg').textContent = `Welcome, ${user.name}`;
 
     let allProducts = [];
     let currentProduct = null;
 
-    function authHeaders() { return { 'Content-Type':'application/json','Authorization':`Bearer ${token}` }; }
+    function authHeaders() { return { 'Content-Type':'application/json' }; }
 
     function statusBadge(s) {
         const map = { pending:'badge-pending', approved:'badge-approved', rejected:'badge-rejected', completed:'badge-completed' };
@@ -185,6 +216,9 @@
                         <span class="badge bg-secondary small">${p.category}</span>
                         ${p.stock_quantity < 50 ? '<span class="badge bg-danger small">Low Stock</span>' : ''}
                     </div>
+                    <div style="height:160px; background:#f8f9fa; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden;" class="mb-3">
+                        ${p.image_url ? `<img src="${p.image_url}" alt="${p.product_name}" style="width:100%; height:100%; object-fit:cover;">` : '<span class="text-muted small">No Image</span>'}
+                    </div>
                     <h6 class="fw-semibold mb-1">${p.product_name}</h6>
                     <p class="text-muted small mb-2">by ${p.manufacturer}</p>
                     <p class="small text-secondary mb-2">${p.description || 'No description.'}</p>
@@ -194,36 +228,36 @@
                     </div>
                     <div class="text-muted small mb-3">Min. Order: ${p.minimum_order_quantity} units</div>
                     <button class="btn btn-primary btn-sm w-100"
-                        onclick='openOrderModal(${JSON.stringify(p)})'>
-                        Place Order
+                        onclick='openAddToCartModal(${JSON.stringify(p)})'>
+                        Add to Cart
                     </button>
                 </div>
             </div>
         `).join('');
     }
 
-    function openOrderModal(product) {
+    function openAddToCartModal(product) {
         currentProduct = product;
-        document.getElementById('orderProductInfo').textContent =
+        document.getElementById('cartProductInfo').textContent =
             `${product.product_name} — ₹${parseFloat(product.wholesale_price).toFixed(2)} per unit | Available: ${product.stock_quantity}`;
-        document.getElementById('moqHint').textContent = `Minimum order: ${product.minimum_order_quantity} units`;
-        document.getElementById('orderQty').value = product.minimum_order_quantity;
-        document.getElementById('orderQty').min   = product.minimum_order_quantity;
-        document.getElementById('estimatedTotal').textContent = `₹${(product.minimum_order_quantity * parseFloat(product.wholesale_price)).toFixed(2)}`;
-        document.getElementById('orderAlert').style.display = 'none';
-        new bootstrap.Modal(document.getElementById('orderModal')).show();
+        document.getElementById('cartMoqHint').textContent = `Minimum order: ${product.minimum_order_quantity} units`;
+        document.getElementById('cartQty').value = product.minimum_order_quantity;
+        document.getElementById('cartQty').min   = product.minimum_order_quantity;
+        document.getElementById('cartEstimatedTotal').textContent = `₹${(product.minimum_order_quantity * parseFloat(product.wholesale_price)).toFixed(2)}`;
+        document.getElementById('cartAlert').style.display = 'none';
+        new bootstrap.Modal(document.getElementById('addToCartModal')).show();
     }
 
-    document.getElementById('orderQty').addEventListener('input', function() {
+    document.getElementById('cartQty').addEventListener('input', function() {
         if (currentProduct) {
             const total = (parseInt(this.value) || 0) * parseFloat(currentProduct.wholesale_price);
-            document.getElementById('estimatedTotal').textContent = `₹${total.toFixed(2)}`;
+            document.getElementById('cartEstimatedTotal').textContent = `₹${total.toFixed(2)}`;
         }
     });
 
-    async function submitOrder() {
-        const qty       = parseInt(document.getElementById('orderQty').value);
-        const alertEl   = document.getElementById('orderAlert');
+    async function submitAddToCart() {
+        const qty       = parseInt(document.getElementById('cartQty').value);
+        const alertEl   = document.getElementById('cartAlert');
         alertEl.style.display = 'none';
 
         if (!qty || qty < currentProduct.minimum_order_quantity) {
@@ -234,21 +268,116 @@
         }
 
         try {
-            const r = await fetch('/api/orders/place', {
+            const r = await fetch('/api/cart/add', {
                 method:'POST', headers: authHeaders(),
-                body: JSON.stringify({
-                    manufacturer_id: currentProduct.manufacturer_id || currentProduct.product_id,  // fallback
-                    product_id:      currentProduct.product_id,
-                    quantity:        qty
-                })
+                body: JSON.stringify({ product_id: currentProduct.product_id, quantity: qty })
             });
             const d = await r.json();
             alertEl.className = d.success ? 'alert alert-success small py-2' : 'alert alert-danger small py-2';
             alertEl.textContent = d.message;
             alertEl.style.display = 'block';
             if (d.success) {
-                setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide(), 1500);
-                loadProducts();
+                setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('addToCartModal')).hide(), 1500);
+                loadCartCount();
+            }
+        } catch(e) {
+            alertEl.className = 'alert alert-danger small py-2';
+            alertEl.textContent = 'Server error.';
+            alertEl.style.display = 'block';
+        }
+    }
+
+    async function loadCartCount() {
+        try {
+            const r = await fetch('/api/cart', { headers: authHeaders() });
+            const d = await r.json();
+            if (d.success) {
+                document.getElementById('cartCount').textContent = d.items.length;
+            }
+        } catch(e) {}
+    }
+
+    async function openCartModal() {
+        const tb = document.getElementById('cartItemsBody');
+        tb.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
+        document.getElementById('checkoutAlert').style.display = 'none';
+        new bootstrap.Modal(document.getElementById('checkoutModal')).show();
+        await renderCart();
+    }
+
+    async function renderCart() {
+        const tb = document.getElementById('cartItemsBody');
+        try {
+            const r = await fetch('/api/cart', { headers: authHeaders() });
+            const d = await r.json();
+            if (!d.success || d.items.length === 0) {
+                tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cart is empty.</td></tr>';
+                document.getElementById('cartGrandTotal').textContent = '0.00';
+                document.getElementById('cartCount').textContent = '0';
+                return;
+            }
+            document.getElementById('cartCount').textContent = d.items.length;
+            
+            let total = 0;
+            tb.innerHTML = d.items.map(i => {
+                const lineTotal = i.quantity * parseFloat(i.wholesale_price);
+                total += lineTotal;
+                return `<tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="${i.image_url || ''}" width="40" height="40" class="rounded me-2 bg-light" style="object-fit:cover;">
+                            <div>
+                                <div class="fw-semibold" style="font-size:0.9rem">${i.product_name}</div>
+                                <div class="text-muted" style="font-size:0.75rem">Min Qty: ${i.minimum_order_quantity}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>₹${parseFloat(i.wholesale_price).toFixed(2)}</td>
+                    <td style="width:100px;">
+                        <input type="number" class="form-control form-control-sm" value="${i.quantity}" min="${i.minimum_order_quantity}" max="${i.stock_quantity}" onchange="updateCartItem(${i.cart_item_id}, this.value)">
+                    </td>
+                    <td class="fw-semibold">₹${lineTotal.toFixed(2)}</td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="removeCartItem(${i.cart_item_id})">✕</button></td>
+                </tr>`;
+            }).join('');
+            document.getElementById('cartGrandTotal').textContent = total.toFixed(2);
+        } catch (e) {
+            tb.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Error loading cart.</td></tr>';
+        }
+    }
+
+    async function updateCartItem(id, qty) {
+        await fetch('/api/cart/update', { method:'PUT', headers:authHeaders(), body:JSON.stringify({cart_item_id:id, quantity:parseInt(qty)}) });
+        renderCart();
+    }
+
+    async function removeCartItem(id) {
+        await fetch(`/api/cart/remove/${id}`, { method:'DELETE', headers:authHeaders() });
+        renderCart();
+    }
+
+    async function clearCart() {
+        await fetch('/api/cart/clear', { method:'POST', headers:authHeaders() });
+        renderCart();
+    }
+
+    async function confirmCheckout() {
+        const alertEl = document.getElementById('checkoutAlert');
+        alertEl.style.display = 'none';
+        try {
+            const r = await fetch('/api/orders/checkout', { method:'POST', headers: authHeaders() });
+            const d = await r.json();
+            alertEl.className = d.success ? 'alert alert-success small py-2' : 'alert alert-danger small py-2';
+            alertEl.textContent = d.message;
+            alertEl.style.display = 'block';
+            if (d.success) {
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('checkoutModal')).hide();
+                    loadMyOrders();
+                    var triggerEl = document.querySelector('#mainTabs a[href="#tabMyOrders"]')
+                    bootstrap.Tab.getInstance(triggerEl).show();
+                }, 1500);
+                loadCartCount();
             }
         } catch(e) {
             alertEl.className = 'alert alert-danger small py-2';
@@ -283,12 +412,7 @@
         }
     }
 
-    // Fetch manufacturer_id from products API (we need it for order placement)
-    async function enrichProductsWithManufacturerId() {
-        // The getAllProducts query already returns manufacturer name; we need manufacturer_id
-        // We'll re-fetch with an updated query or use product's manufacturer info from the API
-        // The products endpoint returns all needed fields including manufacturer_id via join
-    }
+
 
     // Tab switch events
     document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
@@ -297,13 +421,14 @@
         });
     });
 
-    function logout() {
-        localStorage.removeItem('token');
+    async function logout() {
+        await fetch('/api/auth/logout', { method: 'POST' });
         localStorage.removeItem('user');
         window.location.href = 'login.html';
     }
 
     loadProducts();
+    loadCartCount();
 </script>
 </body>
 </html>

@@ -64,9 +64,8 @@
 </div>
 <script>
     // Redirect if already logged in
-    const token = localStorage.getItem('token');
     const user  = JSON.parse(localStorage.getItem('user') || 'null');
-    if (token && user) {
+    if (user) {
         redirectByRole(user.role);
     }
 
@@ -97,7 +96,6 @@
             const data = await resp.json();
 
             if (data.success) {
-                localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
                 redirectByRole(data.user.role);
             } else {

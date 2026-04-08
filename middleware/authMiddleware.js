@@ -5,17 +5,10 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'b2b_secret_key_2024';
 
 function verifyToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-
-    if (!authHeader) {
-        return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
-    }
-
-    // Token format: "Bearer <token>"
-    const token = authHeader.split(' ')[1];
+    const token = req.cookies && req.cookies.token;
 
     if (!token) {
-        return res.status(401).json({ success: false, message: 'Access denied. Token missing.' });
+        return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
     }
 
     try {

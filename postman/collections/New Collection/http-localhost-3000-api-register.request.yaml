@@ -1,0 +1,21 @@
+$kind: http-request
+name: http://localhost:3000/api/register
+url: http://localhost:3000/api/products/add
+method: POST
+headers:
+  Authorization: Bearer
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo4LCJlbWFpbCI6ImFua2l0QHRlc3QuY29tIiwicm9sZSI6InJldGFpbGVyIiwicm9sZV9pZCI6NCwiaWF0IjoxNzc1MTI1MjkwLCJleHAiOjE3NzUyMTE2OTB9.2SrBi_jxL49XnA0NvtX53XvUD_1En_2_Utsj7cGslY0
+body:
+  type: json
+  content: "{\r
+
+    \  \"product_name\": \"Cotton Shirts\",\r
+
+    \  \"category\": \"Clothing\",\r
+
+    \  \"description\": \"Bulk cotton shirts\",\r
+
+    \  \"minimum_order_quantity\": 50\r
+
+    }"
+order: 1775123394484

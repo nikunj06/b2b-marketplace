@@ -3,7 +3,7 @@
 const db = require('../db');
 
 // GET /api/admin/users
-async function getAllUsers(req, res) {
+async function getAllUsers(req, res, next) {
     try {
         const [rows] = await db.execute(`
             SELECT u.user_id, u.name, u.email, u.role, u.created_at,
@@ -16,13 +16,12 @@ async function getAllUsers(req, res) {
         `);
         return res.json({ success: true, users: rows });
     } catch (err) {
-        console.error('Admin get users error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/admin/orders
-async function getAllOrders(req, res) {
+async function getAllOrders(req, res, next) {
     try {
         const [rows] = await db.execute(`
             SELECT po.order_id, po.order_date, po.order_status,
@@ -39,13 +38,12 @@ async function getAllOrders(req, res) {
         `);
         return res.json({ success: true, orders: rows });
     } catch (err) {
-        console.error('Admin get orders error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/admin/inventory
-async function getAllInventory(req, res) {
+async function getAllInventory(req, res, next) {
     try {
         const [rows] = await db.execute(`
             SELECT p.product_id, p.product_name, p.category,
@@ -58,13 +56,12 @@ async function getAllInventory(req, res) {
         `);
         return res.json({ success: true, inventory: rows });
     } catch (err) {
-        console.error('Admin get inventory error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/admin/stats  (dashboard summary)
-async function getDashboardStats(req, res) {
+async function getDashboardStats(req, res, next) {
     try {
         const [[usersCount]]     = await db.execute('SELECT COUNT(*) AS total FROM Users WHERE role != "admin"');
         const [[ordersCount]]    = await db.execute('SELECT COUNT(*) AS total FROM Purchase_Orders');
@@ -86,8 +83,7 @@ async function getDashboardStats(req, res) {
             }
         });
     } catch (err) {
-        console.error('Admin stats error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 

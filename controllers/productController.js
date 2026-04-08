@@ -3,19 +3,16 @@
 const db = require('../db');
 
 // POST /api/products/add  (manufacturer only)
-async function addProduct(req, res) {
+async function addProduct(req, res, next) {
     const { product_name, category, description, minimum_order_quantity, stock_quantity, wholesale_price } = req.body;
     const manufacturer_id = req.user.role_id;
-
-    if (!product_name || !category || !minimum_order_quantity || !stock_quantity || !wholesale_price) {
-        return res.status(400).json({ success: false, message: 'All product and inventory fields are required.' });
-    }
+    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     try {
         // Insert product
         const [prodResult] = await db.execute(
-            'INSERT INTO Products (manufacturer_id, product_name, category, description, minimum_order_quantity) VALUES (?, ?, ?, ?, ?)',
-            [manufacturer_id, product_name, category, description || '', minimum_order_quantity]
+            'INSERT INTO Products (manufacturer_id, product_name, category, description, image_url, minimum_order_quantity) VALUES (?, ?, ?, ?, ?, ?)',
+            [manufacturer_id, product_name, category, description || '', image_url, minimum_order_quantity]
         );
         const product_id = prodResult.insertId;
 
@@ -28,16 +25,15 @@ async function addProduct(req, res) {
         return res.status(201).json({ success: true, message: 'Product added successfully.', product_id });
 
     } catch (err) {
-        console.error('Add product error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/products/all  (retailers browse all products)
-async function getAllProducts(req, res) {
+async function getAllProducts(req, res, next) {
     try {
         const [rows] = await db.execute(`
-            SELECT p.product_id, p.product_name, p.category, p.description,
+            SELECT p.product_id, p.product_name, p.category, p.description, p.image_url,
                    p.minimum_order_quantity, p.manufacturer_id,
                    m.company_name AS manufacturer,
                    i.stock_quantity, i.wholesale_price
@@ -48,17 +44,16 @@ async function getAllProducts(req, res) {
         `);
         return res.json({ success: true, products: rows });
     } catch (err) {
-        console.error('Get products error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/products/manufacturer/:id  (manufacturer's own products)
-async function getManufacturerProducts(req, res) {
+async function getManufacturerProducts(req, res, next) {
     const manufacturer_id = req.params.id;
     try {
         const [rows] = await db.execute(`
-            SELECT p.product_id, p.product_name, p.category, p.description,
+            SELECT p.product_id, p.product_name, p.category, p.description, p.image_url,
                    p.minimum_order_quantity, i.stock_quantity, i.wholesale_price
             FROM Products p
             JOIN Inventory i ON i.product_id = p.product_id
@@ -67,19 +62,14 @@ async function getManufacturerProducts(req, res) {
         `, [manufacturer_id]);
         return res.json({ success: true, products: rows });
     } catch (err) {
-        console.error('Get manufacturer products error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // PUT /api/inventory/update  (manufacturer updates stock/price)
-async function updateInventory(req, res) {
+async function updateInventory(req, res, next) {
     const { product_id, stock_quantity, wholesale_price } = req.body;
     const manufacturer_id = req.user.role_id;
-
-    if (!product_id) {
-        return res.status(400).json({ success: false, message: 'product_id is required.' });
-    }
 
     try {
         await db.execute(
@@ -89,9 +79,7 @@ async function updateInventory(req, res) {
         );
         return res.json({ success: true, message: 'Inventory updated.' });
     } catch (err) {
-        console.error('Update inventory error:', err);
-        // Trigger will throw error for negative stock
-        return res.status(400).json({ success: false, message: err.sqlMessage || 'Server error.' });
+        next(err);
     }
 }
 

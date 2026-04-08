@@ -3,13 +3,9 @@
 const db = require('../db');
 
 // POST /api/orders/place  (retailer places order via stored procedure)
-async function placeOrder(req, res) {
+async function placeOrder(req, res, next) {
     const { manufacturer_id, product_id, quantity } = req.body;
     const retailer_id = req.user.role_id;
-
-    if (!manufacturer_id || !product_id || !quantity) {
-        return res.status(400).json({ success: false, message: 'manufacturer_id, product_id and quantity are required.' });
-    }
 
     try {
         // Call stored procedure
@@ -25,13 +21,78 @@ async function placeOrder(req, res) {
         return res.status(201).json({ success: true, message: result.message, order_id: result.order_id });
 
     } catch (err) {
-        console.error('Place order error:', err);
-        return res.status(500).json({ success: false, message: err.sqlMessage || 'Server error.' });
+        next(err);
+    }
+}
+
+// POST /api/orders/checkout (retailer checks out their cart)
+async function checkoutCart(req, res, next) {
+    const retailer_id = req.user.role_id;
+    let connection;
+    try {
+        const [carts] = await db.execute('SELECT cart_id FROM Carts WHERE retailer_id = ?', [retailer_id]);
+        if (carts.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty.' });
+        const cart_id = carts[0].cart_id;
+
+        const [items] = await db.execute(`
+            SELECT ci.cart_item_id, ci.product_id, ci.quantity, 
+                   p.manufacturer_id, p.minimum_order_quantity, 
+                   i.wholesale_price, i.stock_quantity
+            FROM Cart_Items ci
+            JOIN Products p ON p.product_id = ci.product_id
+            JOIN Inventory i ON i.product_id = p.product_id
+            WHERE ci.cart_id = ?
+        `, [cart_id]);
+
+        if (items.length === 0) return res.status(400).json({ success: false, message: 'Cart is empty.' });
+
+        for (const item of items) {
+            if (item.quantity < item.minimum_order_quantity) {
+                return res.status(400).json({ success: false, message: `MOQ not met for product ${item.product_id}` });
+            }
+            if (item.quantity > item.stock_quantity) {
+                return res.status(400).json({ success: false, message: `Insufficient stock for product ${item.product_id}` });
+            }
+        }
+
+        connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        const ordersByMfg = {};
+        for (const item of items) {
+            if (!ordersByMfg[item.manufacturer_id]) ordersByMfg[item.manufacturer_id] = [];
+            ordersByMfg[item.manufacturer_id].push(item);
+        }
+
+        for (const mfg_id in ordersByMfg) {
+            const [orderRes] = await connection.execute(
+                "INSERT INTO Purchase_Orders (retailer_id, manufacturer_id, order_status) VALUES (?, ?, 'pending')",
+                [retailer_id, mfg_id]
+            );
+            const order_id = orderRes.insertId;
+
+            for (const item of ordersByMfg[mfg_id]) {
+                await connection.execute(
+                    'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, ?, ?)',
+                    [order_id, item.product_id, item.quantity, item.wholesale_price]
+                );
+            }
+        }
+
+        await connection.execute('DELETE FROM Cart_Items WHERE cart_id = ?', [cart_id]);
+        await connection.commit();
+        res.json({ success: true, message: 'Order(s) placed successfully.' });
+
+    } catch (err) {
+        if (connection) await connection.rollback();
+        next(err);
+    } finally {
+        if (connection) connection.release();
     }
 }
 
 // GET /api/orders/retailer/:id
-async function getRetailerOrders(req, res) {
+async function getRetailerOrders(req, res, next) {
     const retailer_id = req.params.id;
     try {
         const [rows] = await db.execute(`
@@ -48,13 +109,12 @@ async function getRetailerOrders(req, res) {
         `, [retailer_id]);
         return res.json({ success: true, orders: rows });
     } catch (err) {
-        console.error('Get retailer orders error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // GET /api/orders/manufacturer/:id
-async function getManufacturerOrders(req, res) {
+async function getManufacturerOrders(req, res, next) {
     const manufacturer_id = req.params.id;
     try {
         const [rows] = await db.execute(`
@@ -71,28 +131,21 @@ async function getManufacturerOrders(req, res) {
         `, [manufacturer_id]);
         return res.json({ success: true, orders: rows });
     } catch (err) {
-        console.error('Get manufacturer orders error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
 // PUT /api/orders/status  (manufacturer updates order status)
-async function updateOrderStatus(req, res) {
+async function updateOrderStatus(req, res, next) {
     const { order_id, status } = req.body;
-    const validStatuses = ['pending', 'approved', 'rejected', 'completed'];
-
-    if (!order_id || !status || !validStatuses.includes(status)) {
-        return res.status(400).json({ success: false, message: 'Valid order_id and status are required.' });
-    }
 
     try {
         await db.execute(`CALL UpdateOrderStatus(?, ?, @message)`, [order_id, status]);
         const [[result]] = await db.execute(`SELECT @message AS message`);
         return res.json({ success: true, message: result.message });
     } catch (err) {
-        console.error('Update status error:', err);
-        return res.status(500).json({ success: false, message: 'Server error.' });
+        next(err);
     }
 }
 
-module.exports = { placeOrder, getRetailerOrders, getManufacturerOrders, updateOrderStatus };
+module.exports = { placeOrder, checkoutCart, getRetailerOrders, getManufacturerOrders, updateOrderStatus };
